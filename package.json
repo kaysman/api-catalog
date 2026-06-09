@@ -1,0 +1,9 @@
+{
+  "name": "api-catalog-workspace",
+  "private": true,
+  "workspaces": ["packages/*"],
+  "scripts": {
+    "build:ui": "node scripts/build-ui.mjs",
+    "lint": "npm run lint -w api-catalog"
+  }
+}

@@ -1,0 +1,17 @@
+[package]
+name = "api-catalog"
+version = "0.1.0"
+edition = "2021"
+description = "Universal OpenAPI catalog — code-first route docs for Axum and Actix-web."
+license = "MIT"
+
+[features]
+default = []
+axum    = ["dep:axum"]
+actix   = ["dep:actix-web"]
+
+[dependencies]
+serde      = { version = "1", features = ["derive"] }
+serde_json = "1"
+axum       = { version = "0.7", optional = true }
+actix-web  = { version = "4",   optional = true }

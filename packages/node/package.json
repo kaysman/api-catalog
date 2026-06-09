@@ -1,0 +1,32 @@
+{
+  "name": "api-catalog",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Universal OpenAPI catalog — code-first route docs for Express, NestJS, and Rust. Write your routes once, get a Postman-style interactive UI automatically.",
+  "main": "./src/index.ts",
+  "types": "./src/index.ts",
+  "exports": {
+    ".":          "./src/index.ts",
+    "./express":  "./src/express.ts",
+    "./nestjs":   "./src/adapters/nestjs.ts",
+    "./spec":     "./src/spec/index.ts"
+  },
+  "files": ["src"],
+  "scripts": {
+    "lint": "tsc --noEmit --project tsconfig.json",
+    "build:ui": "node ../../scripts/build-ui.mjs"
+  },
+  "peerDependencies": {
+    "express": ">=4.0.0",
+    "@nestjs/common": ">=9.0.0",
+    "@nestjs/core": ">=9.0.0"
+  },
+  "peerDependenciesMeta": {
+    "@nestjs/common": { "optional": true },
+    "@nestjs/core":   { "optional": true }
+  },
+  "devDependencies": {
+    "@types/express": "^4.17.21",
+    "typescript": "^5.4.5"
+  }
+}

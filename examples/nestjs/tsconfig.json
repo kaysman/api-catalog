@@ -1,0 +1,17 @@
+{
+  "compilerOptions": {
+    "module":                 "CommonJS",
+    "moduleResolution":       "Bundler",
+    "target":                 "ES2021",
+    "experimentalDecorators": true,
+    "emitDecoratorMetadata":  true,
+    "strict":                 false,
+    "skipLibCheck":           true,
+    "outDir":                 "./dist",
+    "sourceMap":              true
+  },
+  "include": ["src"],
+  "ts-node": {
+    "experimentalResolver": true
+  }
+}
