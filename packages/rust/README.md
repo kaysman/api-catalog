@@ -1,5 +1,7 @@
 # api-catalog — Rust
 
+[![crates.io](https://img.shields.io/crates/v/api-catalog?logo=rust)](https://crates.io/crates/api-catalog) [![docs.rs](https://img.shields.io/docsrs/api-catalog?logo=docs.rs)](https://docs.rs/api-catalog) [![CI](https://github.com/kaysman/api-catalog/actions/workflows/ci.yml/badge.svg)](https://github.com/kaysman/api-catalog/actions/workflows/ci.yml)
+
 Code-first OpenAPI catalog for Axum and Actix-web. Document routes inline with a fluent builder; the crate generates the OpenAPI spec and serves an interactive UI at startup.
 
 ```toml
@@ -8,6 +10,8 @@ api-catalog = { version = "0.1", features = ["axum"] }
 # or
 api-catalog = { version = "0.1", features = ["actix"] }
 ```
+
+![The generated API console](https://raw.githubusercontent.com/kaysman/api-catalog/master/docs/assets/console.png)
 
 ---
 
@@ -27,6 +31,7 @@ Both features can be enabled at the same time.
 ```rust
 use api_catalog::{Catalog, route, spec::Schema};
 use axum::{Router, routing::get};
+use serde_json::json;
 
 #[tokio::main]
 async fn main() {
@@ -79,6 +84,8 @@ async fn main() {
 }
 ```
 
+A complete, runnable version of this example lives in [`examples/axum`](https://github.com/kaysman/api-catalog/tree/master/examples/axum).
+
 ---
 
 ## Actix-web
@@ -120,7 +127,7 @@ async fn main() -> std::io::Result<()> {
 
 ## `route!` macro
 
-`route!(METHOD "path")` is shorthand for `RouteDoc::new("METHOD", "path")`. Chain documentation methods on the result:
+`route!(METHOD "path")` is shorthand for `RouteDoc::new("METHOD", "path")`. Write paths the way your framework does — Axum's `:id` / `*rest` and Actix's `{id:\d+}` are normalised to OpenAPI's `{id}` in the generated spec. Chain documentation methods on the result:
 
 ```rust
 route!(GET "/users/:id")
@@ -191,3 +198,13 @@ When mounted at `/docs`:
 | `GET /docs/default.json` | OpenAPI 3.0.3 JSON document |
 
 The HTML is embedded in the binary at compile time — no static files to deploy.
+
+### Other frameworks
+
+Without a feature flag, `Catalog` still gives you everything to serve yourself:
+
+```rust
+let catalog = build_catalog();
+let spec: &serde_json::Value = catalog.openapi(); // serve at <docs>/default.json
+let page: String = catalog.html();                // serve at <docs>
+```

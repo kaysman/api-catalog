@@ -1,10 +1,14 @@
 # api-catalog — Node.js
 
+[![npm](https://img.shields.io/npm/v/api-catalog?logo=npm)](https://www.npmjs.com/package/api-catalog) [![CI](https://github.com/kaysman/api-catalog/actions/workflows/ci.yml/badge.svg)](https://github.com/kaysman/api-catalog/actions/workflows/ci.yml)
+
 Code-first OpenAPI catalog for Express and NestJS. Document routes inline where you define them; the package generates the spec and serves an interactive UI automatically.
 
 ```sh
 npm install api-catalog
 ```
+
+![The generated API console](https://raw.githubusercontent.com/kaysman/api-catalog/master/docs/assets/console.png)
 
 ---
 
@@ -169,6 +173,32 @@ bootstrap();
 ```
 
 Only methods decorated with `@ApiOperation` appear in the catalog. Undocumented routes are excluded.
+
+### Adapter options
+
+| Option | Default | Notes |
+| --- | --- | --- |
+| `title`, `version`, `serverUrl` | `"API"`, `"1.0.0"`, — | Document metadata. |
+| `schemas` | — | Component schemas, referenced via `s.ref("Name")`. |
+| `securitySchemes` | — | e.g. `{ bearerAuth: { type: "http", scheme: "bearer" } }`. |
+| `security` | — | Document-level requirement, e.g. `[{ bearerAuth: [] }]`. |
+| `globalPrefix` | app's global prefix | Read from `app.setGlobalPrefix()` automatically. Pass `""` to opt out. |
+| `enabled` | see below | Gates the whole docs route. |
+
+**Global prefix.** If you call `app.setGlobalPrefix("api/v1")`, documented paths
+are emitted as `/api/v1/users/{id}` — no need to fold the prefix into
+`serverUrl`.
+
+**Docs are off in production by default.** The catalog mounts on the raw HTTP
+adapter, so it sits outside Nest's guards and global prefix — an unguarded
+route publishing your whole API surface. It is enabled outside production and,
+when `NODE_ENV === "production"`, requires `ENABLE_API_DOCS=true`. Set
+`enabled` explicitly to override either way; if you do expose it in
+production, put your own auth middleware in front of `basePath`.
+
+**Paths are OpenAPI templates.** Framework-style params are converted for the
+spec (`/users/:id` → `/users/{id}`), so the JSON validates and imports into
+Postman/Insomnia cleanly. The UI fills either form when you send a request.
 
 ---
 
