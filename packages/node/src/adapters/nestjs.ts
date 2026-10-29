@@ -33,6 +33,8 @@ import type {
   ReferenceObject,
   OperationObject,
   ParameterObject,
+  SecuritySchemeObject,
+  SecurityRequirementObject,
 } from "../spec/openapi.js";
 
 // reflect-metadata is a runtime peer dep (NestJS always loads it).
@@ -236,6 +238,55 @@ export interface ApiCatalogAdapterOptions {
   version?: string;
   /** Component schemas to register, referenced via s.ref("Name") in decorators. */
   schemas?: Record<string, SchemaObject | ReferenceObject>;
+  /**
+   * Security schemes to declare on the document, e.g.
+   * `{ bearerAuth: { type: "http", scheme: "bearer", bearerFormat: "JWT" } }`.
+   */
+  securitySchemes?: Record<string, SecuritySchemeObject>;
+  /** Document-level security requirement, e.g. `[{ bearerAuth: [] }]`. */
+  security?: SecurityRequirementObject[];
+  /**
+   * Prefix applied to every documented path. Defaults to the app's global
+   * prefix (`app.setGlobalPrefix("api/v1")`) when it can be read. Pass `""`
+   * to opt out of prefixing entirely.
+   */
+  globalPrefix?: string;
+  /**
+   * Gate the docs route. When `false`, `setup()` collects nothing and mounts
+   * nothing.
+   *
+   * Default: enabled outside production; in production (`NODE_ENV`
+   * === "production") it must be opted into with `ENABLE_API_DOCS=true`.
+   * The catalog mounts on the raw HTTP adapter, so it sits outside Nest's
+   * guards and global prefix — an unguarded route publishing your entire API
+   * surface. Defaulting it off in production keeps that from shipping by
+   * accident; put it behind your own auth middleware if you need it there.
+   */
+  enabled?: boolean;
+}
+
+/** Docs are on by default except in production, where they must be opted in. */
+function defaultEnabled(): boolean {
+  const env = globalThis.process?.env ?? {};
+  const flag = env["ENABLE_API_DOCS"];
+  if (flag !== undefined) return flag !== "false" && flag !== "0";
+  return env["NODE_ENV"] !== "production";
+}
+
+/**
+ * Read the app's global prefix (set via `app.setGlobalPrefix()`). Nest exposes
+ * this only on the internal ApplicationConfig, so probe defensively and fall
+ * back to no prefix rather than throwing.
+ */
+function readGlobalPrefix(app: NestApp): string {
+  const config = (app as unknown as Record<string, unknown>)["config"] as
+    | { getGlobalPrefix?: () => string }
+    | undefined;
+  try {
+    return config?.getGlobalPrefix?.() ?? "";
+  } catch {
+    return "";
+  }
 }
 
 /**
@@ -251,6 +302,10 @@ export class ApiCatalogAdapter {
     app: NestApp,
     opts: ApiCatalogAdapterOptions = {},
   ): void {
+    if (!(opts.enabled ?? defaultEnabled())) return;
+
+    const globalPrefix = opts.globalPrefix ?? readGlobalPrefix(app);
+
     const container = (app as unknown as Record<string, unknown>)["container"] as {
       getModules(): Map<
         string,
@@ -284,6 +339,16 @@ export class ApiCatalogAdapter {
       }
     }
 
+    if (opts.securitySchemes) {
+      for (const [name, scheme] of Object.entries(opts.securitySchemes)) {
+        builder.securityScheme(name, scheme);
+      }
+    }
+
+    if (opts.security) {
+      builder.security(opts.security);
+    }
+
     for (const [, nestModule] of container.getModules()) {
       for (const [, wrapper] of nestModule.controllers) {
         if (!wrapper.instance || !wrapper.metatype) continue;
@@ -292,9 +357,16 @@ export class ApiCatalogAdapter {
         const instance = wrapper.instance as object;
         const proto = Object.getPrototypeOf(instance) as Record<string, unknown>;
 
-        // Controller path prefix (from @Controller("users"))
-        const controllerPath: string =
-          (Reflect.getMetadata("path", metatype) as string | undefined) ?? "";
+        // Controller path prefix (from @Controller("users")). Nest also allows
+        // an array — @Controller(["users", "people"]) — which registers the
+        // same handlers under each prefix.
+        const rawControllerPath = Reflect.getMetadata("path", metatype) as
+          | string
+          | string[]
+          | undefined;
+        const controllerPaths: string[] = Array.isArray(rawControllerPath)
+          ? rawControllerPath.map(String)
+          : [String(rawControllerPath ?? "")];
 
         for (const methodName of Object.getOwnPropertyNames(proto)) {
           if (methodName === "constructor") continue;
@@ -303,10 +375,10 @@ export class ApiCatalogAdapter {
 
           // NestJS stores route metadata on the handler function itself
           // (descriptor.value), not on (prototype, methodName).
-          const routePath: string | undefined = Reflect.getMetadata(
-            "path",
-            method,
-          ) as string | undefined;
+          const routePath = Reflect.getMetadata("path", method) as
+            | string
+            | string[]
+            | undefined;
           const httpMethodNum: number | undefined = Reflect.getMetadata(
             "method",
             method,
@@ -325,13 +397,21 @@ export class ApiCatalogAdapter {
           const httpMethod = NEST_METHOD[httpMethodNum];
           if (!httpMethod || httpMethod === "all") continue;
 
-          // Normalise path: /users + /:id → /users/:id
-          const fullPath =
-            "/" +
-            [controllerPath, routePath]
-              .map((p) => String(p).replace(/^\/|\/$/g, ""))
-              .filter(Boolean)
-              .join("/");
+          // Normalise path: /users + /:id → /users/:id. A controller and/or
+          // handler declared with an array of paths yields one entry each.
+          const routePaths: string[] = Array.isArray(routePath)
+            ? routePath.map(String)
+            : [String(routePath)];
+          const fullPaths = controllerPaths.flatMap((cp) =>
+            routePaths.map(
+              (rp) =>
+                "/" +
+                [globalPrefix, cp, rp]
+                  .map((p) => String(p).replace(/^\/|\/$/g, ""))
+                  .filter(Boolean)
+                  .join("/"),
+            ),
+          );
 
           // Collect our decorator metadata
           const params: ParameterObject[] =
@@ -381,11 +461,13 @@ export class ApiCatalogAdapter {
             ),
           };
 
-          builder.addRoute(
-            httpMethod as import("../spec/openapi.js").HttpMethod,
-            fullPath,
-            operation,
-          );
+          for (const fullPath of fullPaths) {
+            builder.addRoute(
+              httpMethod as import("../spec/openapi.js").HttpMethod,
+              fullPath,
+              operation,
+            );
+          }
         }
       }
     }

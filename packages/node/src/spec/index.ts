@@ -1,4 +1,4 @@
-export { SpecBuilder } from "./builder.js";
+export { SpecBuilder, toOpenApiPath } from "./builder.js";
 export { s } from "./schema.js";
 export type { Schema } from "./schema.js";
 export type {

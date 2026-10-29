@@ -9,9 +9,20 @@ import type {
   ReferenceObject,
   ComponentsObject,
   SecuritySchemeObject,
+  SecurityRequirementObject,
   TagObject,
   HttpMethod,
 } from "./openapi.js";
+
+/**
+ * Convert framework-style path params to OpenAPI template syntax:
+ * `/users/:id` → `/users/{id}`. Also handles Express's optional (`:id?`) and
+ * regex-constrained (`:id(\d+)`) forms. Idempotent — paths already written as
+ * `/users/{id}` pass through untouched.
+ */
+export function toOpenApiPath(path: string): string {
+  return path.replace(/:([A-Za-z_$][\w$]*)(\([^)]*\))?\??/g, "{$1}");
+}
 
 /**
  * Fluent builder for OpenAPI 3.x documents. Call .build() to get a deep
@@ -90,6 +101,15 @@ export class SpecBuilder {
     return this;
   }
 
+  /**
+   * Set the document-level security requirement, applied to every operation
+   * that does not declare its own — e.g. `.security([{ bearerAuth: [] }])`.
+   */
+  security(requirements: SecurityRequirementObject[]): this {
+    this._spec.security = requirements;
+    return this;
+  }
+
   /** Shorthand: add an HTTP Bearer / JWT security scheme. */
   bearerAuth(name = "bearerAuth"): this {
     return this.securityScheme(name, {
@@ -111,9 +131,10 @@ export class SpecBuilder {
   // ── Paths ─────────────────────────────────────────────────────────────
 
   addRoute(method: HttpMethod, path: string, operation: OperationObject): this {
+    const specPath = toOpenApiPath(path);
     this._spec.paths ??= {};
-    this._spec.paths[path] ??= {};
-    (this._spec.paths[path] as PathItemObject)[method] = operation;
+    this._spec.paths[specPath] ??= {};
+    (this._spec.paths[specPath] as PathItemObject)[method] = operation;
     return this;
   }
 
