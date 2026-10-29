@@ -114,7 +114,7 @@ api-catalog/
 ├── scripts/
 │   ├── build-ui.mjs        ← syncs ui/ into both packages
 │   └── capture.mjs         ← regenerates the README screenshots and GIF
-└── .github/workflows/      ← CI (Node 18/20/22 + Rust) and tag-triggered release
+└── .github/workflows/      ← CI (Node 20/22/24 + Rust) and tag-triggered release
 ```
 
 ## Development

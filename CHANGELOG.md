@@ -20,12 +20,12 @@ First public release.
   - Array controller and route paths in NestJS (`@Controller(["a", "b"])`).
   - `SpecBuilder`, `s` schema helpers, and `toOpenApiPath`.
   - Ships as CommonJS with type declarations, so it works from both CJS and
-    ESM projects on Node 18+.
+    ESM projects on Node 20+.
 - **Rust (`api-catalog`)**
   - `Catalog` builder with the `route!` macro.
   - `axum` feature: `into_axum_router()`. `actix` feature: `configure()`.
   - `Catalog::openapi()` and `Catalog::html()` for any other framework.
-- Examples for NestJS and Axum. CI on Node 18/20/22 and stable Rust.
+- Examples for NestJS and Axum. CI on Node 20/22/24 and stable Rust.
 
 ### Fixed
 - Framework path params (`:id`, `*rest`, `{id:\d+}`) are emitted as OpenAPI
