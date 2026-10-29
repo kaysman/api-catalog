@@ -4,15 +4,21 @@ on:
   push:
     tags: ["v*"]
 
+# npm and crates.io publish in separate jobs, so one registry never blocks the
+# other. npm is required; crates.io is skipped (with a warning) until the
+# CARGO_REGISTRY_TOKEN secret exists — add it later and re-run that job:
+#   gh run rerun <run-id> --job <crates job id>
+# Each publish skips a version that's already live, so re-runs are safe.
+
 jobs:
   ci:
     uses: ./.github/workflows/ci.yml
 
-  publish:
+  npm:
     needs: ci
     runs-on: ubuntu-latest
     permissions:
-      contents: write   # create the GitHub Release
+      contents: read
       id-token: write   # npm provenance
     steps:
       - uses: actions/checkout@v7
@@ -20,33 +26,18 @@ jobs:
         with:
           node-version: 22
           registry-url: https://registry.npmjs.org
-      - uses: dtolnay/rust-toolchain@stable
 
-      - name: Tag matches package versions
+      - name: Tag matches package version
         run: |
-          tag="${GITHUB_REF_NAME#v}"
-          npm_version=$(node -p "require('./packages/node/package.json').version")
-          crate_version=$(cargo metadata --no-deps --format-version 1 \
-            | jq -r '.packages[] | select(.name == "api-catalog") | .version')
-          echo "tag=$tag npm=$npm_version crate=$crate_version"
-          test "$tag" = "$npm_version" && test "$tag" = "$crate_version"
-
-      # Fail before publishing anything, so a missing token can't leave the
-      # release half-done (npm published, crates.io not).
-      - name: Registry tokens are configured
-        run: |
-          test -n "$NPM_TOKEN" || { echo "::error::Missing secret NPM_TOKEN"; exit 1; }
-          test -n "$CARGO_REGISTRY_TOKEN" || { echo "::error::Missing secret CARGO_REGISTRY_TOKEN"; exit 1; }
-        env:
-          NPM_TOKEN: ${{ secrets.NPM_TOKEN }}
-          CARGO_REGISTRY_TOKEN: ${{ secrets.CARGO_REGISTRY_TOKEN }}
+          version=$(node -p "require('./packages/node/package.json').version")
+          echo "tag=${GITHUB_REF_NAME#v} npm=$version"
+          test "${GITHUB_REF_NAME#v}" = "$version"
 
       - run: npm ci
 
-      # Each publish skips a version that's already live, so re-running a
-      # partly failed release finishes the rest.
       - name: Publish to npm
         run: |
+          test -n "$NODE_AUTH_TOKEN" || { echo "::error::Missing secret NPM_TOKEN"; exit 1; }
           version="${GITHUB_REF_NAME#v}"
           if npm view "api-catalog@$version" version >/dev/null 2>&1; then
             echo "api-catalog@$version is already on npm — skipping"
@@ -56,7 +47,28 @@ jobs:
         env:
           NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
 
+  crates:
+    needs: ci
+    runs-on: ubuntu-latest
+    env:
+      CARGO_REGISTRY_TOKEN: ${{ secrets.CARGO_REGISTRY_TOKEN }}
+    steps:
+      - uses: actions/checkout@v7
+      - uses: dtolnay/rust-toolchain@stable
+
+      - name: Tag matches crate version
+        run: |
+          version=$(cargo metadata --no-deps --format-version 1 \
+            | jq -r '.packages[] | select(.name == "api-catalog") | .version')
+          echo "tag=${GITHUB_REF_NAME#v} crate=$version"
+          test "${GITHUB_REF_NAME#v}" = "$version"
+
+      - name: Skip — no crates.io token
+        if: env.CARGO_REGISTRY_TOKEN == ''
+        run: echo "::warning::CARGO_REGISTRY_TOKEN is not set — crates.io publish skipped. Add the secret and re-run this job."
+
       - name: Publish to crates.io
+        if: env.CARGO_REGISTRY_TOKEN != ''
         run: |
           version="${GITHUB_REF_NAME#v}"
           if curl -sf -A "api-catalog-release (github.com/kaysman/api-catalog)" \
@@ -65,10 +77,15 @@ jobs:
           else
             cargo publish -p api-catalog
           fi
-        env:
-          CARGO_REGISTRY_TOKEN: ${{ secrets.CARGO_REGISTRY_TOKEN }}
 
-      - name: GitHub Release
+  github-release:
+    needs: npm
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v7
+      - name: Create GitHub Release
         run: |
           # Notes = this version's section of CHANGELOG.md
           awk -v v="${GITHUB_REF_NAME#v}" '
