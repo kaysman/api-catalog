@@ -4,6 +4,17 @@ version = "0.1.0"
 edition = "2021"
 description = "Universal OpenAPI catalog — code-first route docs for Axum and Actix-web."
 license = "MIT"
+authors = ["kaysman"]
+repository = "https://github.com/kaysman/api-catalog"
+homepage = "https://github.com/kaysman/api-catalog"
+documentation = "https://docs.rs/api-catalog"
+readme = "README.md"
+keywords = ["openapi", "swagger", "axum", "actix-web", "api-docs"]
+categories = ["web-programming::http-server", "development-tools"]
+include = ["src/**/*", "assets/**/*", "tests/**/*", "README.md", "LICENSE"]
+
+[package.metadata.docs.rs]
+all-features = true
 
 [features]
 default = []
@@ -15,3 +26,8 @@ serde      = { version = "1", features = ["derive"] }
 serde_json = "1"
 axum       = { version = "0.7", optional = true }
 actix-web  = { version = "4",   optional = true }
+
+[dev-dependencies]
+tokio = { version = "1", features = ["macros", "rt-multi-thread"] }
+tower = { version = "0.5", features = ["util"] }
+http-body-util = "0.1"

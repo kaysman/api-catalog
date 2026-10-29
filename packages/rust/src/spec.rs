@@ -95,6 +95,38 @@ fn merge_into(base: &mut Value, extra: Value) {
     }
 }
 
+// ── Path templates ────────────────────────────────────────────────────────────
+
+/// Convert framework-style path params to OpenAPI template syntax.
+///
+/// - Axum 0.7 `:id` and `*rest` → `{id}`, `{rest}`
+/// - Actix regex-constrained `{id:\d+}` → `{id}`
+/// - Paths already written as `{id}` pass through untouched.
+///
+/// ```
+/// use api_catalog::spec::to_openapi_path;
+/// assert_eq!(to_openapi_path("/users/:id/posts/*rest"), "/users/{id}/posts/{rest}");
+/// assert_eq!(to_openapi_path("/users/{id:\\d+}"), "/users/{id}");
+/// ```
+pub fn to_openapi_path(path: &str) -> String {
+    path.split('/')
+        .map(|seg| {
+            if let Some(name) = seg.strip_prefix(':').or_else(|| seg.strip_prefix('*')) {
+                if !name.is_empty() {
+                    return format!("{{{name}}}");
+                }
+            }
+            if let Some(inner) = seg.strip_prefix('{').and_then(|r| r.strip_suffix('}')) {
+                if let Some((name, _pattern)) = inner.split_once(':') {
+                    return format!("{{{name}}}");
+                }
+            }
+            seg.to_string()
+        })
+        .collect::<Vec<_>>()
+        .join("/")
+}
+
 // ── RouteDoc ──────────────────────────────────────────────────────────────────
 
 #[derive(Debug, Clone, Default)]
@@ -283,7 +315,10 @@ impl RouteDoc {
         let mut responses = serde_json::Map::new();
         for r in &self.responses {
             let mut rm = serde_json::Map::new();
-            rm.insert("description".to_string(), Value::String(r.description.clone()));
+            rm.insert(
+                "description".to_string(),
+                Value::String(r.description.clone()),
+            );
             if let Some(ref s) = r.schema {
                 rm.insert(
                     "content".to_string(),
@@ -373,7 +408,8 @@ impl SpecBuilder {
     }
 
     pub fn tag(mut self, name: &str, description: &str) -> Self {
-        self.tags.push(json!({ "name": name, "description": description }));
+        self.tags
+            .push(json!({ "name": name, "description": description }));
         self
     }
 
@@ -385,7 +421,7 @@ impl SpecBuilder {
     pub fn route(mut self, doc: RouteDoc) -> Self {
         let method = doc.method.to_lowercase();
         self.paths
-            .entry(doc.path.clone())
+            .entry(to_openapi_path(&doc.path))
             .or_default()
             .insert(method, doc.to_openapi_operation());
         self
@@ -401,8 +437,7 @@ impl SpecBuilder {
             .paths
             .into_iter()
             .map(|(path, methods)| {
-                let methods_val: serde_json::Map<String, Value> =
-                    methods.into_iter().collect();
+                let methods_val: serde_json::Map<String, Value> = methods.into_iter().collect();
                 (path, Value::Object(methods_val))
             })
             .collect();
@@ -420,11 +455,76 @@ impl SpecBuilder {
             doc["tags"] = Value::Array(self.tags);
         }
         if !self.schemas.is_empty() {
-            let schemas: serde_json::Map<String, Value> =
-                self.schemas.into_iter().collect();
+            let schemas: serde_json::Map<String, Value> = self.schemas.into_iter().collect();
             doc["components"] = json!({ "schemas": Value::Object(schemas) });
         }
 
         doc
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn converts_framework_params_to_openapi_templates() {
+        assert_eq!(to_openapi_path("/users/:id"), "/users/{id}");
+        assert_eq!(to_openapi_path("/files/*path"), "/files/{path}");
+        assert_eq!(to_openapi_path("/users/{id:\\d+}"), "/users/{id}");
+        assert_eq!(
+            to_openapi_path("/orgs/:org/users/{user}"),
+            "/orgs/{org}/users/{user}"
+        );
+        assert_eq!(to_openapi_path("/users"), "/users");
+        assert_eq!(to_openapi_path("/"), "/");
+    }
+
+    #[test]
+    fn route_doc_renders_an_operation() {
+        let op = RouteDoc::new("get", "/users/:id")
+            .summary("Get user")
+            .tag("Users")
+            .path_param("id", Schema::string())
+            .query("expand", Schema::boolean())
+            .response(200, "User", Schema::object_ref("User"))
+            .response_empty(404, "Not found")
+            .to_openapi_operation();
+
+        assert_eq!(op["summary"], "Get user");
+        assert_eq!(op["tags"], json!(["Users"]));
+        assert_eq!(
+            op["parameters"][0],
+            json!({ "name": "id", "in": "path", "required": true, "schema": { "type": "string" } })
+        );
+        assert_eq!(op["parameters"][1]["required"], false);
+        assert_eq!(
+            op["responses"]["200"]["content"]["application/json"]["schema"]["$ref"],
+            "#/components/schemas/User"
+        );
+        assert!(op["responses"]["404"].get("content").is_none());
+    }
+
+    #[test]
+    fn spec_builder_assembles_the_document() {
+        let doc = SpecBuilder::new()
+            .title("Users API")
+            .version("2.0.0")
+            .server("https://api.example.com")
+            .schema("User", Schema::object(vec![("id", Schema::string())]))
+            .route(RouteDoc::new("GET", "/users/:id").summary("Get"))
+            .route(RouteDoc::new("DELETE", "/users/:id").summary("Delete"))
+            .build();
+
+        assert!(doc["openapi"].as_str().unwrap().starts_with("3."));
+        assert_eq!(
+            doc["info"],
+            json!({ "title": "Users API", "version": "2.0.0" })
+        );
+        assert_eq!(doc["servers"][0]["url"], "https://api.example.com");
+        assert!(doc["components"]["schemas"]["User"].is_object());
+        assert_eq!(doc["paths"]["/users/{id}"]["get"]["summary"], "Get");
+        assert_eq!(doc["paths"]["/users/{id}"]["delete"]["summary"], "Delete");
+        assert!(doc["paths"].get("/users/:id").is_none());
     }
 }

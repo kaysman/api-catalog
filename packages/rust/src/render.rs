@@ -1,12 +1,12 @@
 use crate::spec::CatalogOptions;
+use serde_json::json;
 
 // ui/ at the repo root is the single source of truth for the catalog frontend.
-// Both this Rust crate and the npm package read from it.
+// assets/ holds copies so the crate is self-contained when published.
 // To update: edit ui/styles.css or ui/client.js, then run:
-//   node scripts/build-ui.mjs   (regenerates the npm package's TS wrappers)
-// The Rust crate reads the raw files directly at compile time.
-const STYLES: &str = include_str!("../../../ui/styles.css");
-const CLIENT_SCRIPT: &str = include_str!("../../../ui/client.js");
+//   node scripts/build-ui.mjs   (syncs both the npm and Rust packages)
+const STYLES: &str = include_str!("../assets/styles.css");
+const CLIENT_SCRIPT: &str = include_str!("../assets/client.js");
 
 fn esc_attr(s: &str) -> String {
     s.replace('&', "&amp;")
@@ -18,12 +18,6 @@ fn esc_attr(s: &str) -> String {
 /// synchronous — call once at startup and cache the result.
 pub fn render_catalog_html(opts: &CatalogOptions) -> String {
     let title = &opts.title;
-    let server_url_js = opts
-        .server_url
-        .as_deref()
-        .map(|u| format!("\"{}\"", u.replace('"', "\\\"")))
-        .unwrap_or_else(|| "null".to_string());
-
     let scope_buttons: String = opts
         .scopes
         .iter()
@@ -38,24 +32,18 @@ pub fn render_catalog_html(opts: &CatalogOptions) -> String {
         })
         .collect();
 
-    let client_config = {
-        let scopes_json: String = opts
-            .scopes
-            .iter()
-            .map(|s| {
-                format!(
-                    "{{\"id\":\"{}\",\"label\":\"{}\"}}",
-                    s.id.replace('"', "\\\""),
-                    s.label.replace('"', "\\\""),
-                )
-            })
-            .collect::<Vec<_>>()
-            .join(",");
-        format!(
-            "{{\"basePath\":\"/docs\",\"serverUrl\":{},\"scopes\":[{}]}}",
-            server_url_js, scopes_json
-        )
-    };
+    // basePath is null: the page derives it from its own URL, so the catalog
+    // works wherever it is nested (Axum's `nest` doesn't tell us the prefix).
+    let client_config = json!({
+        "basePath": null,
+        "serverUrl": opts.server_url,
+        "scopes": opts.scopes.iter()
+            .map(|s| json!({ "id": s.id, "label": s.label }))
+            .collect::<Vec<_>>(),
+    })
+    .to_string()
+    // Keep "</script>" in a title or URL from closing the inline script.
+    .replace("</", "<\\/");
 
     let gear_icon = r#"<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-2.82 1.17V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 7.6 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 3.6 13.4H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 7.6l.33-1.82a2 2 0 1 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 10.6 3H12a2 2 0 0 1 4 0v.09A1.65 1.65 0 0 0 19.4 4.6l1.82-.33"/></svg>"#;
     let search_icon = r#"<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="11" cy="11" r="7"/><path d="m21 21-4.3-4.3"/></svg>"#;

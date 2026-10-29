@@ -27,10 +27,14 @@ async fn html_handler(
 
 /// Axum handler that serves a scope's OpenAPI JSON document.
 async fn scope_json_handler(
-    axum::extract::Path(scope_id): axum::extract::Path<String>,
+    axum::extract::Path(file): axum::extract::Path<String>,
     axum::extract::State(state): axum::extract::State<Arc<CatalogState>>,
 ) -> impl IntoResponse {
-    match state.scopes.iter().find(|(id, _)| id == &scope_id) {
+    // matchit can't split a segment, so capture "<id>.json" whole and strip it.
+    let Some(scope_id) = file.strip_suffix(".json") else {
+        return StatusCode::NOT_FOUND.into_response();
+    };
+    match state.scopes.iter().find(|(id, _)| id == scope_id) {
         Some((_, doc)) => axum::Json(doc.clone()).into_response(),
         None => StatusCode::NOT_FOUND.into_response(),
     }
@@ -58,6 +62,6 @@ pub fn into_axum_router(opts: CatalogOptions) -> Router {
 
     Router::new()
         .route("/", get(html_handler))
-        .route("/:scope_id.json", get(scope_json_handler))
+        .route("/:file", get(scope_json_handler))
         .with_state(state)
 }

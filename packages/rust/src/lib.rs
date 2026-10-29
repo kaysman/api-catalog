@@ -53,8 +53,8 @@ HttpServer::new(move || {
 ```
 */
 
-pub mod spec;
 pub mod render;
+pub mod spec;
 
 #[cfg(feature = "axum")]
 pub mod axum;
@@ -73,6 +73,18 @@ pub struct Catalog {
 impl Catalog {
     pub fn builder() -> CatalogBuilder {
         CatalogBuilder::new()
+    }
+
+    /// The generated OpenAPI document — serve it from any framework, or
+    /// write it to disk for client generation.
+    pub fn openapi(&self) -> &serde_json::Value {
+        &self.opts.scopes[0].document
+    }
+
+    /// The standalone catalog HTML page. It fetches `<page path>/default.json`,
+    /// so serve [`Catalog::openapi`] next to it.
+    pub fn html(&self) -> String {
+        render::render_catalog_html(&self.opts)
     }
 
     /// Serve the catalog with Axum. Mount the returned router under a path:
