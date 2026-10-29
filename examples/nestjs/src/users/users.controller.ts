@@ -73,7 +73,7 @@ export class UsersController {
 
   @Get(':id')
   @ApiOperation({ summary: 'Get user by ID', tags: ['Users'] })
-  @ApiParam({ name: 'id', schema: s.string({ format: 'uuid' }) })
+  @ApiParam({ name: 'id', schema: s.string() })
   @ApiResponse({ status: 200, description: 'User found', schema: s.ref('User') })
   @ApiResponse({ status: 404, description: 'Not found'   })
   findOne(@Param('id') id: string) {
@@ -84,7 +84,7 @@ export class UsersController {
 
   @Patch(':id')
   @ApiOperation({ summary: 'Update user', tags: ['Users'] })
-  @ApiParam({ name: 'id', schema: s.string({ format: 'uuid' }) })
+  @ApiParam({ name: 'id', schema: s.string() })
   @ApiBody({
     schema: s.object({
       name:  s.string(),
@@ -105,7 +105,7 @@ export class UsersController {
 
   @Delete(':id')
   @ApiOperation({ summary: 'Delete user', tags: ['Users'] })
-  @ApiParam({ name: 'id', schema: s.string({ format: 'uuid' }) })
+  @ApiParam({ name: 'id', schema: s.string() })
   @ApiResponse({ status: 200, description: 'User deleted', schema: s.ref('User') })
   @ApiResponse({ status: 404, description: 'Not found'    })
   remove(@Param('id') id: string) {

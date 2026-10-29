@@ -13,7 +13,7 @@ async function bootstrap() {
     schemas: {
       User: s.object(
         {
-          id:    s.string({ format: 'uuid' }),
+          id:    s.string(),
           name:  s.string(),
           email: s.string({ format: 'email' }),
           role:  s.enum(['admin', 'user']),
