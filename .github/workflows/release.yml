@@ -31,15 +31,40 @@ jobs:
           echo "tag=$tag npm=$npm_version crate=$crate_version"
           test "$tag" = "$npm_version" && test "$tag" = "$crate_version"
 
+      # Fail before publishing anything, so a missing token can't leave the
+      # release half-done (npm published, crates.io not).
+      - name: Registry tokens are configured
+        run: |
+          test -n "$NPM_TOKEN" || { echo "::error::Missing secret NPM_TOKEN"; exit 1; }
+          test -n "$CARGO_REGISTRY_TOKEN" || { echo "::error::Missing secret CARGO_REGISTRY_TOKEN"; exit 1; }
+        env:
+          NPM_TOKEN: ${{ secrets.NPM_TOKEN }}
+          CARGO_REGISTRY_TOKEN: ${{ secrets.CARGO_REGISTRY_TOKEN }}
+
       - run: npm ci
 
+      # Each publish skips a version that's already live, so re-running a
+      # partly failed release finishes the rest.
       - name: Publish to npm
-        run: npm publish -w api-catalog --provenance --access public
+        run: |
+          version="${GITHUB_REF_NAME#v}"
+          if npm view "api-catalog@$version" version >/dev/null 2>&1; then
+            echo "api-catalog@$version is already on npm — skipping"
+          else
+            npm publish -w api-catalog --provenance --access public
+          fi
         env:
           NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
 
       - name: Publish to crates.io
-        run: cargo publish -p api-catalog
+        run: |
+          version="${GITHUB_REF_NAME#v}"
+          if curl -sf -A "api-catalog-release (github.com/kaysman/api-catalog)" \
+              "https://crates.io/api/v1/crates/api-catalog/$version" >/dev/null; then
+            echo "api-catalog $version is already on crates.io — skipping"
+          else
+            cargo publish -p api-catalog
+          fi
         env:
           CARGO_REGISTRY_TOKEN: ${{ secrets.CARGO_REGISTRY_TOKEN }}
 
@@ -51,6 +76,7 @@ jobs:
             on && /^## / { exit }
             on { print }
           ' CHANGELOG.md > notes.md
-          gh release create "$GITHUB_REF_NAME" --title "$GITHUB_REF_NAME" --notes-file notes.md
+          gh release view "$GITHUB_REF_NAME" >/dev/null 2>&1 \
+            || gh release create "$GITHUB_REF_NAME" --title "$GITHUB_REF_NAME" --notes-file notes.md
         env:
           GH_TOKEN: ${{ github.token }}
