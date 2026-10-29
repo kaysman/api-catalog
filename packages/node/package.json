@@ -1,32 +1,88 @@
 {
   "name": "api-catalog",
   "version": "0.1.0",
-  "private": true,
   "description": "Universal OpenAPI catalog — code-first route docs for Express, NestJS, and Rust. Write your routes once, get a Postman-style interactive UI automatically.",
-  "main": "./src/index.ts",
-  "types": "./src/index.ts",
-  "exports": {
-    ".":          "./src/index.ts",
-    "./express":  "./src/express.ts",
-    "./nestjs":   "./src/adapters/nestjs.ts",
-    "./spec":     "./src/spec/index.ts"
+  "keywords": [
+    "openapi",
+    "swagger",
+    "api-docs",
+    "express",
+    "nestjs",
+    "api-console",
+    "code-first",
+    "postman"
+  ],
+  "license": "MIT",
+  "author": "kaysman",
+  "homepage": "https://github.com/kaysman/api-catalog#readme",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/kaysman/api-catalog.git",
+    "directory": "packages/node"
   },
-  "files": ["src"],
+  "bugs": {
+    "url": "https://github.com/kaysman/api-catalog/issues"
+  },
+  "engines": {
+    "node": ">=18"
+  },
+  "sideEffects": false,
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "default": "./dist/index.js"
+    },
+    "./express": {
+      "types": "./dist/express.d.ts",
+      "default": "./dist/express.js"
+    },
+    "./nestjs": {
+      "types": "./dist/adapters/nestjs.d.ts",
+      "default": "./dist/adapters/nestjs.js"
+    },
+    "./spec": {
+      "types": "./dist/spec/index.d.ts",
+      "default": "./dist/spec/index.js"
+    }
+  },
+  "files": [
+    "dist"
+  ],
   "scripts": {
-    "lint": "tsc --noEmit --project tsconfig.json",
-    "build:ui": "node ../../scripts/build-ui.mjs"
+    "build": "tsc --project tsconfig.build.json",
+    "clean": "rm -rf dist",
+    "lint": "tsc --noEmit --project tsconfig.json && tsc --noEmit --project test/tsconfig.json",
+    "test": "vitest run",
+    "build:ui": "node ../../scripts/build-ui.mjs",
+    "prepublishOnly": "npm run build:ui && npm run clean && npm run build"
   },
   "peerDependencies": {
-    "express": ">=4.0.0",
     "@nestjs/common": ">=9.0.0",
-    "@nestjs/core": ">=9.0.0"
+    "@nestjs/core": ">=9.0.0",
+    "express": ">=4.0.0"
   },
   "peerDependenciesMeta": {
-    "@nestjs/common": { "optional": true },
-    "@nestjs/core":   { "optional": true }
+    "@nestjs/common": {
+      "optional": true
+    },
+    "@nestjs/core": {
+      "optional": true
+    },
+    "express": {
+      "optional": true
+    }
   },
   "devDependencies": {
+    "@nestjs/common": "^10.4.22",
+    "@nestjs/core": "^10.4.22",
+    "@nestjs/platform-express": "^10.4.22",
     "@types/express": "^4.17.21",
-    "typescript": "^5.4.5"
+    "express": "^4.22.3",
+    "reflect-metadata": "^0.2.2",
+    "rxjs": "^7.8.2",
+    "typescript": "^5.4.5",
+    "vitest": "^3.2.7"
   }
 }

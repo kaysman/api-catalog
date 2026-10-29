@@ -1,9 +1,17 @@
 {
   "name": "api-catalog-workspace",
   "private": true,
-  "workspaces": ["packages/*"],
+  "workspaces": [
+    "packages/*"
+  ],
   "scripts": {
     "build:ui": "node scripts/build-ui.mjs",
-    "lint": "npm run lint -w api-catalog"
+    "check:ui": "node scripts/build-ui.mjs && git diff --exit-code -- packages/node/src/ui packages/rust/assets",
+    "build": "npm run build -w api-catalog",
+    "lint": "npm run lint -w api-catalog",
+    "test": "npm test -w api-catalog"
+  },
+  "devDependencies": {
+    "playwright": "^1.64.1"
   }
 }
