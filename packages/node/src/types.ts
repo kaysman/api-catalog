@@ -19,7 +19,7 @@ export interface CatalogScope {
 export interface ApiCatalogOptions {
   /**
    * Base path the catalog is served under. The HTML page lives here and
-   * each scope's spec at `<basePath>/<scopeId>.json`. Default "/api/docs".
+   * each scope's spec at `<basePath>/<scopeId>.json`. Default "/docs".
    */
   basePath?: string;
   /** Page + sidebar title. Default "API Catalog". */

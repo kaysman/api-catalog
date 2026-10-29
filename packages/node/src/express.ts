@@ -32,7 +32,7 @@ function resolveScopes(opts: ApiCatalogOptions): ResolvedScope[] {
  * The HTML is rendered once at mount; the JSON docs are resolved once too.
  *
  *   mountApiCatalog(app, {
- *     basePath: "/api/docs",
+ *     basePath: "/docs",
  *     title: "RR API Catalog",
  *     scopes: [
  *       { id: "tenant", label: "Tenant", document: getTenantDoc },
@@ -41,7 +41,7 @@ function resolveScopes(opts: ApiCatalogOptions): ResolvedScope[] {
  *   });
  */
 export function mountApiCatalog(app: Mountable, opts: ApiCatalogOptions): void {
-  const basePath = opts.basePath || "/api/docs";
+  const basePath = opts.basePath || "/docs";
   const scopes = resolveScopes(opts);
   const html = renderCatalogHtml({ ...opts, basePath });
 

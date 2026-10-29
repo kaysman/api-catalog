@@ -2,8 +2,9 @@
 (function () {
   "use strict";
 
-  var CFG = window.__API_CATALOG__ || { basePath: "/api/docs", scopes: [] };
-  var BASE = CFG.basePath || "/api/docs";
+  var CFG = window.__API_CATALOG__ || { basePath: null, scopes: [] };
+  // No basePath from the server → the page is served at the base itself.
+  var BASE = CFG.basePath || window.location.pathname.replace(/\/+$/, "");
 
   var scope = (CFG.scopes[0] && CFG.scopes[0].id) || "default";
   var spec = null;
@@ -39,7 +40,7 @@
   // Replace {{name}} tokens with their global variable values.
   function interpolate(str) {
     var m = varMap();
-    return String(str == null ? "" : str).replace(/\\{\\{\\s*([\\w.-]+)\\s*\\}\\}/g, function (whole, name) {
+    return String(str == null ? "" : str).replace(/\{\{\s*([\w.-]+)\s*\}\}/g, function (whole, name) {
       return Object.prototype.hasOwnProperty.call(m, name) ? m[name] : whole;
     });
   }
@@ -97,9 +98,9 @@
       || (spec && spec.servers && spec.servers[0] && spec.servers[0].url)
       || window.location.origin;
     try {
-      return new URL(declared, window.location.origin).href.replace(/\\/$/, "");
+      return new URL(declared, window.location.origin).href.replace(/\/$/, "");
     } catch (e) {
-      return String(declared).replace(/\\/$/, "");
+      return String(declared).replace(/\/$/, "");
     }
   }
 
@@ -182,7 +183,7 @@
     if (activeKey === key) activeKey = openTabs[Math.min(i, openTabs.length - 1)] || null;
     renderTabs(); syncPanes(); markActiveInTree();
   }
-  function cssEscape(s) { return s.replace(/["\\\\]/g, "\\\\$&"); }
+  function cssEscape(s) { return s.replace(/["\\]/g, "\\$&"); }
 
   function renderTabs() {
     els.tabbar.innerHTML = openTabs.map(function (key) {
@@ -242,7 +243,7 @@
     var ps = (op.parameters || []).filter(function (p) { return p["in"] === "query" || p["in"] === "path"; });
     var rows = ps.map(function (p) {
       var s = p.schema || {};
-      var sample = s.default != null ? s.default : (s.enum ? s.enum[0] : (p["in"] === "path" ? ":" + p.name : ""));
+      var sample = s.default != null ? s.default : (s.enum ? s.enum[0] : (p["in"] === "path" ? "{" + p.name + "}" : ""));
       return kvRow(p.name, sample, { lockKey: true, off: !p.required && p["in"] === "query" });
     }).join("");
     return '<div class="kv kv-params">' + rows + '</div>'
@@ -420,8 +421,11 @@
     var query = [];
     params.forEach(function (kv) {
       var val = interpolate(kv[1]);
-      var token = ":" + kv[0];
-      if (rawUrl.indexOf(token) !== -1) rawUrl = rawUrl.replace(token, encodeURIComponent(val));
+      // OpenAPI templates use {name}; also accept :name for hand-typed URLs.
+      var braced = "{" + kv[0] + "}";
+      var colon = ":" + kv[0];
+      if (rawUrl.indexOf(braced) !== -1) rawUrl = rawUrl.replace(braced, encodeURIComponent(val));
+      else if (rawUrl.indexOf(colon) !== -1) rawUrl = rawUrl.replace(colon, encodeURIComponent(val));
       else if (val !== "") query.push(encodeURIComponent(kv[0]) + "=" + encodeURIComponent(val));
     });
     if (query.length) rawUrl += (rawUrl.indexOf("?") === -1 ? "?" : "&") + query.join("&");

@@ -17,7 +17,7 @@ function escAttr(s: string): string {
  * Stateless and synchronous — call once and serve the string.
  */
 export function renderCatalogHtml(opts: ApiCatalogOptions): string {
-  const basePath = opts.basePath || "/api/docs";
+  const basePath = opts.basePath || "/docs";
   const title = opts.title || "API Catalog";
   const scopes = opts.scopes || [];
 
@@ -33,7 +33,9 @@ export function renderCatalogHtml(opts: ApiCatalogOptions): string {
     basePath,
     serverUrl: opts.serverUrl || null,
     scopes: scopes.map((s) => ({ id: s.id, label: s.label })),
-  });
+  })
+    // Keep "</script>" in a title or URL from closing the inline script.
+    .replace(/<\//g, "<\\/");
 
   return `<!DOCTYPE html>
 <html lang="en">

@@ -20,7 +20,7 @@ interface Mountable {
 }
 
 export interface ExpressCatalogOptions {
-  /** Base path for the catalog UI and spec. Default: "/api/docs" */
+  /** Base path for the catalog UI and spec. Default: "/docs" */
   basePath?: string;
   /** Page and sidebar title. Default: "API Catalog" */
   title?: string;
@@ -64,7 +64,7 @@ export class ExpressApiCatalog {
   private _serverUrl: string | undefined;
 
   constructor(private _app: Mountable, opts: ExpressCatalogOptions = {}) {
-    this._basePath = opts.basePath ?? "/api/docs";
+    this._basePath = opts.basePath ?? "/docs";
     this._title = opts.title ?? "API Catalog";
     this._scopeLabel = opts.scopeLabel ?? this._title;
     this._scopeId = opts.scopeId ?? "default";
