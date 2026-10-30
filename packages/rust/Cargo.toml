@@ -1,6 +1,6 @@
 [package]
 name = "api-catalog"
-version = "0.1.0"
+version = "0.1.1"
 edition = "2021"
 description = "Universal OpenAPI catalog — code-first route docs for Axum and Actix-web."
 license = "MIT"

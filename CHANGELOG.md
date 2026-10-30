@@ -3,6 +3,15 @@
 All notable changes to this project are documented here. The npm package and
 the Rust crate share version numbers.
 
+## [0.1.1] - 2026-10-29
+
+### Fixed
+- TypeScript couldn't find types for `api-catalog/express`, `api-catalog/nestjs`,
+  or `api-catalog/spec` in projects using `"module": "commonjs"` with the default
+  (`node10`) resolution, which includes projects created by `nest new`. Runtime
+  was unaffected. Added a `typesVersions` fallback, and CI now type-checks a
+  consumer under `node10`, `node16`, `nodenext`, and `bundler`.
+
 ## [0.1.0] - 2026-10-29
 
 First public release.

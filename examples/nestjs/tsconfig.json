@@ -1,7 +1,6 @@
 {
   "compilerOptions": {
     "module":                 "CommonJS",
-    "moduleResolution":       "Bundler",
     "target":                 "ES2021",
     "experimentalDecorators": true,
     "emitDecoratorMetadata":  true,

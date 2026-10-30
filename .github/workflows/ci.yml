@@ -28,6 +28,8 @@ jobs:
         run: npm run check:ui
       - run: npm run lint
       - run: npm run build
+      - name: Types resolve for consumers (node10, node16, nodenext, bundler)
+        run: npm run check:types -w api-catalog
       - run: npm test
       - name: Package contents
         run: npm pack --dry-run -w api-catalog
