@@ -4,5 +4,8 @@
     "experimentalDecorators": true,
     "types": ["node"]
   },
-  "include": ["./**/*.ts", "../src/**/*.ts"]
+  "include": ["./**/*.ts", "../src/**/*.ts"],
+  // consumer/ imports the built package (dist/), so it's checked after the
+  // build by `npm run check:types`, not here.
+  "exclude": ["./consumer"]
 }
